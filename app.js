@@ -38,15 +38,26 @@ app.use("/pregEasy",authenticateRequest,pregEasyRoutes);
 app.use("/api/test", apiTestRouter); // Test the API
 
 // Connect to DB
-mongoose.connect(DB_URL, {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-}).then(() => {
-  console.log('Connected to MongoDB Atlas');
-}).catch((err) => {
-  console.log('Error connecting to MongoDB Atlas:', err);
-  process.exit(1);
-});
+let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected) return;
+
+  try {
+    await mongoose.connect(DB_URL, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    isConnected = true;
+    console.log('Connected to MongoDB Atlas');
+  } catch (error) {
+    console.error('Error connecting to MongoDB Atlas:', error);
+    process.exit(1);
+  }
+};
+
+// Connect to MongoDB before starting the server
+connectDB();
 
 // Handle MongoDB connection events
 mongoose.connection.on('connected', () => {
@@ -59,33 +70,10 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.connection.on('disconnected', () => {
   console.log('Mongoose disconnected from MongoDB Atlas');
+  isConnected = false;
 });
-
-// Server Start Function
-const start = async () => {
-  try {
-    app.listen(PORT, () => {
-      const timestamp = new Date().toLocaleString();
-      console.log(`Server started on port ${PORT} at ${timestamp}`);
-    });
-  } catch (error) {
-    console.error('Error starting server:', error);
-    process.exit(1);
-  }
-};
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  try {
-    await mongoose.connection.close();
-    console.log('MongoDB connection closed through app termination');
-    process.exit(0);
-  } catch (err) {
-    console.error('Error during graceful shutdown:', err);
-    process.exit(1);
-  }
-});
-
 process.on('SIGINT', async () => {
   try {
     await mongoose.connection.close();
@@ -97,4 +85,38 @@ process.on('SIGINT', async () => {
   }
 });
 
-start();
+// Server Start Function
+const start = async () => {
+  try {
+    // Ensure database connection
+    await connectDB();
+    
+    const server = app.listen(PORT, () => {
+      const timestamp = new Date().toLocaleString();
+      console.log(`Server started on port ${PORT} at ${timestamp}`);
+    });
+
+    // Handle server shutdown
+    process.on('SIGTERM', () => {
+      console.log('SIGTERM received');
+      server.close(() => {
+        mongoose.connection.close(false, () => {
+          console.log('MongoDB connection closed through app termination');
+          process.exit(0);
+        });
+      });
+    });
+
+  } catch (error) {
+    console.error('Error starting server:', error);
+    process.exit(1);
+  }
+};
+
+// Export the app for Vercel
+module.exports = app;
+
+// Start the server if we're not in a Vercel environment
+if (process.env.NODE_ENV !== 'production') {
+  start();
+}
