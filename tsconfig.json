@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+      "target": "es2017",
+      "module": "commonjs",
+      "allowJs": true,
+      "checkJs": true,
+      "outDir": "./dist",
+      "rootDir": "./",
+      "strict": false,
+      "noImplicitAny": false,
+      "esModuleInterop": true,
+      "resolveJsonModule": true,
+      "skipLibCheck": true,
+      "forceConsistentCasingInFileNames": true,
+      "moduleResolution": "node",
+      "baseUrl": ".",
+      "paths": {
+        "*": ["node_modules/*"]
+      }
+    },
+    "include": [
+      "**/*"
+    ],
+    "exclude": [
+      "node_modules",
+      "dist"
+    ]
+  }
